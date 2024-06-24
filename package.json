@@ -1,0 +1,22 @@
+{
+  "name": "portage-route",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.4.29",
+    "@types/google.maps": "^3.55.10",
+    "@googlemaps/js-api-loader": "1.16.6"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.5",
+    "typescript": "^5.2.2",
+    "vite": "^5.3.1",
+    "vue-tsc": "^2.0.21"
+  }
+}
