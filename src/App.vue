@@ -1,60 +1,39 @@
 <script setup lang="ts">
 import { Loader } from '@googlemaps/js-api-loader';
-import { Ref, nextTick, onBeforeMount, onMounted, reactive, ref, watch } from 'vue'
-import svg from './assets/canoe.svg'
+import { Ref, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import canoePath from './assets/canoe.txt?raw'
+import dq from './assets/dq.png'
+import start from './assets/start.png'
+import end from './assets/end.png'
 
 const loaded = reactive({ map: false, markers: false, places: false, mounted: false, location: false })
-const map = ref(null) as Ref<null | google.maps.Map>
 const directionsService = ref(null) as Ref<null | google.maps.DirectionsService>
 const directionsRenderer = ref(null) as Ref<null | google.maps.DirectionsRenderer>
 const startLocation = ref(null) as Ref<null | google.maps.LatLngLiteral>
-const mapLib = ref(null) as Ref<null | google.maps.MapsLibrary>
-const markerLib = ref(null) as Ref<null | google.maps.marker.AdvancedMarkerElement>
 const placesService = ref(null) as Ref<null | google.maps.places.PlacesService>
 const endLocation = ref(null) as Ref<null | google.maps.LatLngLiteral>
 const directionsResult = ref(null) as Ref<null | google.maps.DirectionsResult>
-const mode = ref('selectPoint')
+const distance = ref(0)
+const goToDq = ref(true)
 
+const icons = reactive({
+  start: null,
+  end: null,
+  dq: null
+} as { [key: string]: null | google.maps.marker.AdvancedMarkerElement})
+
+let map = null as any
 
 
 onMounted(() => {
   const loader = new Loader({
     apiKey: import.meta.env.VITE_MAPS_API_KEY,
-    version: "weekly"
+    version: 'weekly'
   })
 
   loader.importLibrary('maps').then(() => {
     loaded.map = true
-    // const mapEl = document.getElementById('map') as HTMLElement
-    // const pos = { lng: 39.8283, lat: -98.5795 }
-
-    // if (navigator.geolocation) {
-    //   navigator.geolocation.getCurrentPosition((position: GeolocationPosition) => {
-    //     pos.lat = position.coords.latitude
-    //     pos.lng = position.coords.longitude
-    //   })
-
-    //   startLocation.value = pos
-    //   console.log(startLocation.value)
-    // } else {
-    //   return
-    // }
-
-    // map.value = new google.maps.Map(mapEl, {
-    //   center: { lat: 35.102807127601984, lng: -106.61427345290559 },
-    //   zoom: 12,
-    //   mapId: 'PM',
-    //   disableDefaultUI: true
-    // })
-
-    // directionsService.value = new google.maps.DirectionsService()
-    // directionsRenderer.value = new google.maps.DirectionsRenderer({
-    //   map: map.value
-    // })
-
-
-      // map.value.addListener('click', showDirections)
-    })
+  })
 
   loader.importLibrary('marker').then(() => {
     loaded.markers = true
@@ -72,22 +51,17 @@ onMounted(() => {
 
 watch(loaded, () => {
   if (loaded.map && loaded.markers && loaded.places && loaded.mounted && loaded.location) {
+    // initTest()
     nextTick(() => initializeMap())
-    // setTimeout(() => {
-    //   initializeMap()
-    //   // nexttick(initializeMap())
-    // }, 5000);
   }
 })
 
 function askForLocation () {
   const pos = { lat: 0, lng: 0 }
-  // if (navigator.geolocation.)
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition((position: GeolocationPosition) => {
       pos.lat = position.coords.latitude
       pos.lng = position.coords.longitude
-      console.log('dope')
       loaded.location = true
       startLocation.value = pos
     }, (err: GeolocationPositionError) => {
@@ -99,68 +73,188 @@ function askForLocation () {
 }
 
 function initializeMap () {
+  askForLocation()
   const mapEl = document.getElementById('map') as HTMLElement
 
-  map.value = new google.maps.Map(mapEl, {
+  map = new google.maps.Map(mapEl, {
     center: startLocation.value,
     zoom: 12,
-    mapId: 'PM',
-    disableDefaultUI: true
+    mapId: '4504f8b37365c3d0'
   })
-
-  console.log(svg)
 
   directionsService.value = new google.maps.DirectionsService()
   directionsRenderer.value = new google.maps.DirectionsRenderer({
-    map: map.value,
+    map: map,
+    suppressMarkers: true,
     polylineOptions: {
-      strokeColor: 'green', // Set transparent color to hide default path
-      strokeOpacity: 1,
+      strokeColor: '#008bff', // Set transparent color to hide default path
+      strokeOpacity: 0.5,
       icons: [{
         icon: {
-    path: "M 37.5,3.35 12.5,3.35 0,25 12.5,46.65 37.5,46.65 50,25",
-    fillColor: "blue",
-    fillOpacity: 1,
-    strokeWeight: 0,
-    rotation: 0,
-    scale: 0.3,
-    anchor: new google.maps.Point(0, 10),
-  },
-        offset: '-10',
-        repeat: '20px' // Repeat pattern every 20 pixels
+          path: canoePath,
+          fillColor: "#008bff",
+          fillOpacity: 1,
+          strokeWeight: 0,
+          rotation: 90,
+          scale: 1,
+          anchor: new google.maps.Point(5, 0),
+        },
+        repeat: '28px'
       }]
     }
+  });
+
+  const startIcon = document.createElement('img')
+  startIcon.src = start
+  startIcon.width = 40
+  new google.maps.marker.AdvancedMarkerElement({
+    map: map,
+    position: startLocation.value,
+    content: startIcon,
   })
 
-  map.value.addListener('click', showDirections)
+  placesService.value = new google.maps.places.PlacesService(map)
+
+  map.addListener('click', handleLocationSelection)
 }
 
-function showDirections (event: google.maps.MapMouseEvent) {
-  // Add Markers
-  const startMarker = new google.maps.marker.AdvancedMarkerElement({
-    position: startLocation.value,
-    map: map.value
-  })
 
-  const endingMarker = new google.maps.marker.AdvancedMarkerElement({
-    position: event.latLng!,
-    map: map.value
-  })
+function handleLocationSelection(event: google.maps.MapMouseEvent) {
+  console.log('yoo')
+  endLocation.value = { lat: event.latLng?.lat()!, lng: event.latLng?.lng()!}
+  showDirections()
+}
 
+function clearDirections () {
+  endLocation.value = null
+  // directionsResult.value
+  // directionsRenderer.value?.setMap(null)
+  
+  if (icons.dq) {
+    icons.dq.map = null
+  }
+
+  if (icons.end) {
+    icons.end.map = null
+  }
+  // directionsRenderer.value?.setDirections(null)
+}
+
+function setDirections (waypoints: any[]) {
+  console.log('set directions')
   const request: google.maps.DirectionsRequest = {
     origin: startLocation.value!,
-    destination: event.latLng!,
-    travelMode: google.maps.TravelMode.WALKING
+    destination: endLocation.value!,
+    travelMode: google.maps.TravelMode.WALKING,
+    waypoints: waypoints,
   };
 
   directionsService.value?.route(request, (result, status) => {
     directionsResult.value = result
+
+    let meters = 0
+    result?.routes[0].legs.forEach(leg => {
+      meters += leg.distance?.value!
+    })
+
+    distance.value = meters / 5.0292
+    
     if (status === 'OK') {
       directionsRenderer.value?.setDirections(result);
     } else {
       console.error('Directions request failed due to ' + status);
     }
   });
+
+  const endIcon = document.createElement('img')
+  endIcon.src = end
+  endIcon.width = 40
+  icons.end = new google.maps.marker.AdvancedMarkerElement({
+    map: map,
+    position: endLocation.value!,
+    content: endIcon
+  })
+}
+
+
+function showDirections () {
+  // new google.maps.marker.AdvancedMarkerElement({
+  //   position: endLocation.value,
+  //   map: map.value
+  // })
+
+  if (!startLocation.value || !endLocation.value) {
+    return
+  }
+
+  if (icons.dq) {
+    icons.dq.map = null
+  }
+
+  if (icons.end) {
+    icons.end.map = null
+  }
+
+
+  // Find Dairy Queen
+  const dqRequest = {
+    location: endLocation.value!,
+    radius: 50000,
+    keyword: 'Dairy Queen'
+  }
+
+  const centerRequest = {
+    location: {
+      lat: (endLocation.value.lat + startLocation.value.lat) / 2,
+      lng: (endLocation.value.lng + startLocation.value.lng) / 2
+    },
+    radius: 50000,
+    keyword: 'Dairy Queen'
+  }
+
+  const waypoints = [] as google.maps.DirectionsWaypoint[]
+  if (goToDq.value) {
+    placesService.value?.nearbySearch(centerRequest, (results, status) => {
+      let nearestDQ = null
+      
+      if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
+        console.log(results)
+        setDqDirections(results[0])
+      } else {
+        placesService.value?.nearbySearch(dqRequest, (results, status) => {
+          let nearestDQ = null
+          
+          if (status === google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
+            setDqDirections(results[0])
+          } else {
+            setDirections([])
+          }
+        })
+      }
+    })
+  } else {
+    console.log('here')
+    setDirections([])
+  }
+}
+
+function setDqDirections (nearestDQ: any) {
+  const img = document.createElement('img')
+  img.src = dq
+  img.width = 40
+  icons.dq = new google.maps.marker.AdvancedMarkerElement({
+    map: map,
+    position: nearestDQ!.geometry!.location,
+    content: img
+  });
+
+  const waypoints = []
+
+  waypoints.push({
+    location: nearestDQ.geometry?.location
+  })
+
+  setDirections(waypoints)
 }
 </script>
 
@@ -168,6 +262,13 @@ function showDirections (event: google.maps.MapMouseEvent) {
   <div class="portage-route">
     <div id="map">
     </div>
+    <template v-if="endLocation">
+      Selected
+      <button @click="clearDirections">Clear</button>
+    </template>
+    <template v-if="!endLocation">
+      Select a place on the map to portage to.
+    </template>
   </div>
 </template>
 
@@ -179,7 +280,7 @@ function showDirections (event: google.maps.MapMouseEvent) {
 
 #map {
   width: 100%;
-  height: 90%;
+  height: calc(100% - 60px);
   background-color: green;
 }
 </style>
