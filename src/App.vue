@@ -262,13 +262,13 @@ function setDqDirections (nearestDQ: any) {
   <div class="portage-route">
     <div id="map">
     </div>
-    <template v-if="endLocation">
+    <div class="no-selected" v-if="endLocation">
       Selected
       <button @click="clearDirections">Clear</button>
-    </template>
-    <template v-if="!endLocation">
+    </div>
+    <div class="selected" v-if="!endLocation">
       Select a place on the map to portage to.
-    </template>
+    </div>
   </div>
 </template>
 
@@ -276,11 +276,18 @@ function setDqDirections (nearestDQ: any) {
 .portage-route {
   width: 100%;
   height: 100%;
+
+  font-family: sans-serif;
 }
 
 #map {
   width: 100%;
   height: calc(100% - 60px);
   background-color: green;
+}
+
+.not-selected {
+  text-align: center;
+  line-height: 60px;
 }
 </style>
